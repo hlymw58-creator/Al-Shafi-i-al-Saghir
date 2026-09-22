@@ -63,15 +63,21 @@
     .user-info {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       background: rgba(255, 255, 255, 0.15);
       padding: 8px 16px;
       border-radius: 20px;
     }
 
-    .user-name {
-      font-size: 15px;
+    .btn-activate-code {
+      background-color: #ffb300;
+      color: #333;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 12px;
       font-weight: bold;
+      cursor: pointer;
+      font-size: 13px;
     }
 
     .btn-logout {
@@ -156,8 +162,9 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .lecture-card:hover {
-      box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    .lecture-card.locked {
+      opacity: 0.7;
+      background-color: #fafafa;
     }
 
     .lecture-header {
@@ -236,7 +243,7 @@
       cursor: not-allowed;
     }
 
-    /* Modal / نافذة التسجيل */
+    /* Modal / النوافذ المنبثقة */
     .modal-overlay {
       position: fixed;
       top: 0;
@@ -313,6 +320,19 @@
       cursor: wait;
     }
 
+    .auth-toggle {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    .auth-toggle span {
+      color: var(--accent-color);
+      cursor: pointer;
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
     .error-msg {
       color: var(--danger-color);
       font-size: 14px;
@@ -330,6 +350,7 @@
       <div class="brand-title">منصة الشافعي التعليمية</div>
       <div class="user-info" id="userInfo">
         <span id="studentNameDisplay">طالب</span>
+        <button class="btn-activate-code" onclick="openCodeModal()">🔑 تفعيل كود</button>
         <button class="btn-logout" onclick="logout()">تغيير الحساب</button>
       </div>
     </div>
@@ -372,21 +393,49 @@
 
   </div>
 
-  <!-- نافذة تسجيل دخول الطالب (Modal) -->
-  <div class="modal-overlay" id="loginModal">
+  <!-- نافذة تسجيل الدخول / إنشاء الحساب (Modal) -->
+  <div class="modal-overlay" id="authModal">
     <div class="modal-content">
-      <h3 class="modal-title">تسجيل دخول الطالب</h3>
-      <form id="loginForm" onsubmit="handleLogin(event)">
+      <h3 class="modal-title" id="modalTitle">تسجيل الدخول</h3>
+      <form id="authForm" onsubmit="handleAuthSubmit(event)">
+        
+        <div class="form-group" id="nameGroup" style="display: none;">
+          <label for="studentName">الاسم رباعي:</label>
+          <input type="text" id="studentName" placeholder="أدخل اسمك الكامل">
+        </div>
+
         <div class="form-group">
           <label for="studentPhone">رقم الهاتف:</label>
-          <input type="tel" id="studentPhone" required placeholder="أدخل رقم الهاتف المعتمد">
+          <input type="tel" id="studentPhone" required placeholder="أدخل رقم الهاتف">
         </div>
+
         <div class="form-group">
-          <label for="studentPassword">كلمة السر / الكود:</label>
+          <label for="studentPassword">كلمة السر:</label>
           <input type="password" id="studentPassword" required placeholder="أدخل كلمة السر">
         </div>
-        <button type="submit" class="btn-submit" id="loginBtn">دخول المنصة</button>
-        <div class="error-msg" id="loginError"></div>
+
+        <button type="submit" class="btn-submit" id="authSubmitBtn">دخول المنصة</button>
+        <div class="error-msg" id="authError"></div>
+
+        <div class="auth-toggle">
+          <span id="toggleText" onclick="toggleAuthMode()">ليس لديك حساب؟ إنشاء حساب جديد</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة تفعيل الكود (Code Modal) -->
+  <div class="modal-overlay" id="codeModal" style="display: none;">
+    <div class="modal-content">
+      <h3 class="modal-title">تفعيل كود الكورس</h3>
+      <form id="codeForm" onsubmit="handleCodeSubmit(event)">
+        <div class="form-group">
+          <label for="activationCode">أدخل كود التفعيل الخاص بك:</label>
+          <input type="text" id="activationCode" required placeholder="مثال: TAW-1234">
+        </div>
+        <button type="submit" class="btn-submit" id="codeSubmitBtn">تفعيل الكورس</button>
+        <button type="button" class="btn-submit" style="background-color: #757575; margin-top: 8px;" onclick="closeCodeModal()">إلغاء</button>
+        <div class="error-msg" id="codeError"></div>
       </form>
     </div>
   </div>
@@ -396,83 +445,113 @@
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzt1MgMXcny8-8c9RScS2CeNksYEzA6DHwDiWW4px7BxRaRMw7R41kiqFFMlOTsJnNnig/exec";
 
     // ==========================================
-    // 📺 قوائم المحاضرات بالروابط الخاصة بك
+    // 📺 قوائم المحاضرات كاملة بالروابط
     // ==========================================
 
     // 1. قسم التوحيد
     const tawheedLectures = [
-      { id: "t1", title: "المحاضرة الأولى: التوحيد", link: "https://drive.google.com/file/d/1tRQT8wGl0JBAULtHP8unHgOUvEuMAvfr/view?usp=drive_link" },
-      { id: "t2", title: "المحاضرة الثانية: التوحيد", link: "https://drive.google.com/file/d/1g2ERaFdG6cBM3eAfJtzqmFP5UwQcxMt9/view?usp=drive_link" },
-      { id: "t3", title: "المحاضرة الثالثة: التوحيد", link: "https://drive.google.com/file/d/1gk4Mexrh9jf5BlmUcaDafT0c3kncq85Y/view?usp=drive_link" },
-      { id: "t4", title: "المحاضرة الرابعة: التوحيد", link: "https://drive.google.com/file/d/1fxC30t7ObU-JcnYKWfPhQkMgW-f7OHty/view?usp=drive_link" }
+      { id: "t1", course: "التوحيد", title: "المحاضرة الأولى: التوحيد", link: "https://drive.google.com/file/d/1tRQT8wGl0JBAULtHP8unHgOUvEuMAvfr/view?usp=drive_link" },
+      { id: "t2", course: "التوحيد", title: "المحاضرة الثانية: التوحيد", link: "https://drive.google.com/file/d/1g2ERaFdG6cBM3eAfJtzqmFP5UwQcxMt9/view?usp=drive_link" },
+      { id: "t3", course: "التوحيد", title: "المحاضرة الثالثة: التوحيد", link: "https://drive.google.com/file/d/1gk4Mexrh9jf5BlmUcaDafT0c3kncq85Y/view?usp=drive_link" },
+      { id: "t4", course: "التوحيد", title: "المحاضرة الرابعة: التوحيد", link: "https://drive.google.com/file/d/1fxC30t7ObU-JcnYKWfPhQkMgW-f7OHty/view?usp=drive_link" }
     ];
 
     // 2. قسم التفسير
     const tafseerLectures = [
-      { id: "tf1", title: "المحاضرة الأولى: التفسير", link: "https://drive.google.com/file/d/139CDLmXSSNs4GUrw26upbtCqq6byiDgn/view?usp=drive_link" },
-      { id: "tf2", title: "المحاضرة الثانية: التفسير", link: "https://drive.google.com/file/d/11ZAKMszdb9ElNIjMsllSBPBNaqpP68aM/view?usp=drive_link" },
-      { id: "tf3", title: "المحاضرة الثالثة: التفسير", link: "https://drive.google.com/file/d/17ga9UaEakhtKJI6KUg_Ife0Dy4D4DFN7/view?usp=drive_link" },
-      { id: "tf4", title: "المحاضرة الرابعة: التفسير", link: "https://drive.google.com/file/d/1ybVBfpGwWhA5LbLtcptzduZwuipxECEl/view?usp=drive_link" },
-      { id: "tf5", title: "المحاضرة الخامسة: التفسير", link: "https://drive.google.com/file/d/1OOIoWtn-K1oIcI6I36jJS90EoRH1Aa82/view?usp=drive_link" },
-      { id: "tf6", title: "المحاضرة السادسة: التفسير", link: "https://drive.google.com/file/d/1tBOW4BSmxEGvgSCbEmcvWOF40ENRmxBV/view?usp=drive_link" },
-      { id: "tf7", title: "المحاضرة السابعة: التفسير", link: "https://hlymw58-creator.github.io/8/" },
-      { id: "tf8", title: "المحاضرة الثامنة: التفسير", link: "https://hlymw58-creator.github.io/9/" }
+      { id: "tf1", course: "التفسير", title: "المحاضرة الأولى: التفسير", link: "https://drive.google.com/file/d/139CDLmXSSNs4GUrw26upbtCqq6byiDgn/view?usp=drive_link" },
+      { id: "tf2", course: "التفسير", title: "المحاضرة الثانية: التفسير", link: "https://drive.google.com/file/d/11ZAKMszdb9ElNIjMsllSBPBNaqpP68aM/view?usp=drive_link" },
+      { id: "tf3", course: "التفسير", title: "المحاضرة الثالثة: التفسير", link: "https://drive.google.com/file/d/17ga9UaEakhtKJI6KUg_Ife0Dy4D4DFN7/view?usp=drive_link" },
+      { id: "tf4", course: "التفسير", title: "المحاضرة الرابعة: التفسير", link: "https://drive.google.com/file/d/1ybVBfpGwWhA5LbLtcptzduZwuipxECEl/view?usp=drive_link" },
+      { id: "tf5", course: "التفسير", title: "المحاضرة الخامسة: التفسير", link: "https://drive.google.com/file/d/1OOIoWtn-K1oIcI6I36jJS90EoRH1Aa82/view?usp=drive_link" },
+      { id: "tf6", course: "التفسير", title: "المحاضرة السادسة: التفسير", link: "https://drive.google.com/file/d/1tBOW4BSmxEGvgSCbEmcvWOF40ENRmxBV/view?usp=drive_link" },
+      { id: "tf7", course: "التفسير", title: "المحاضرة السابعة: التفسير", link: "https://hlymw58-creator.github.io/8/" },
+      { id: "tf8", course: "التفسير", title: "المحاضرة الثامنة: التفسير", link: "https://hlymw58-creator.github.io/9/" }
     ];
 
     // 3. قسم الفقه الشافعي
     const fiqhLectures = [
-      { id: "f1", title: "المحاضرة الأولى: الفقه الشافعي", link: "https://drive.google.com/file/d/1DnbbyVdf-DPYRegAVp14fu8NOAdWeYkl/view?usp=drive_link" },
-      { id: "f2", title: "المحاضرة الثانية: الفقه الشافعي", link: "https://drive.google.com/file/d/1QCbV_Cmxq1z9uslRzVr93pI46EmOiCAe/view?usp=drive_link" },
-      { id: "f3", title: "المحاضرة الثالثة: الفقه الشافعي", link: "https://drive.google.com/file/d/1XEqiFjjcD7AmPxXBm8f5ktMFYOIrDhW2/view?usp=drive_link" },
-      { id: "f4", title: "المحاضرة الرابعة: الفقه الشافعي", link: "https://drive.google.com/file/d/1vGMqN_XRKk0v-jkOQBHdQVZV-bZC3qeL/view?usp=drive_link" },
-      { id: "f5", title: "المحاضرة الخامسة: الفقه الشافعي", link: "https://drive.google.com/file/d/1sVj16wJql5FYl0P6hSJMJ9ngWWyOJEC5/view?usp=drive_link" },
-      { id: "f6", title: "المحاضرة السادسة: الفقه الشافعي", link: "https://drive.google.com/file/d/1p3GzDReKov8p7w1oZwBuW7E6dFD-l6aR/view?usp=drive_link" },
-      { id: "f7", title: "المحاضرة السابعة: الفقه الشافعي", link: "https://drive.google.com/file/d/1ZcRLp1vRYycezeu40Rl-NmmTBJawMOCg/view?usp=drive_link" },
-      { id: "f8", title: "المحاضرة الثامنة: الفقه الشافعي", link: "https://drive.google.com/file/d/1xLErlwikAKjdOmWHIODlsdVhpiubOI1w/view?usp=drive_link" },
-      { id: "f9", title: "المحاضرة التاسعة: الفقه الشافعي", link: "https://drive.google.com/file/d/1ApGtlqrh5-XRCj7YtxzusZleuT99SKiP/view?usp=drive_link" }
+      { id: "f1", course: "الفقه الشافعي", title: "المحاضرة الأولى: الفقه الشافعي", link: "https://drive.google.com/file/d/1DnbbyVdf-DPYRegAVp14fu8NOAdWeYkl/view?usp=drive_link" },
+      { id: "f2", course: "الفقه الشافعي", title: "المحاضرة الثانية: الفقه الشافعي", link: "https://drive.google.com/file/d/1QCbV_Cmxq1z9uslRzVr93pI46EmOiCAe/view?usp=drive_link" },
+      { id: "f3", course: "الفقه الشافعي", title: "المحاضرة الثالثة: الفقه الشافعي", link: "https://drive.google.com/file/d/1XEqiFjjcD7AmPxXBm8f5ktMFYOIrDhW2/view?usp=drive_link" },
+      { id: "f4", course: "الفقه الشافعي", title: "المحاضرة الرابعة: الفقه الشافعي", link: "https://drive.google.com/file/d/1vGMqN_XRKk0v-jkOQBHdQVZV-bZC3qeL/view?usp=drive_link" },
+      { id: "f5", course: "الفقه الشافعي", title: "المحاضرة الخامسة: الفقه الشافعي", link: "https://drive.google.com/file/d/1sVj16wJql5FYl0P6hSJMJ9ngWWyOJEC5/view?usp=drive_link" },
+      { id: "f6", course: "الفقه الشافعي", title: "المحاضرة السادسة: الفقه الشافعي", link: "https://drive.google.com/file/d/1p3GzDReKov8p7w1oZwBuW7E6dFD-l6aR/view?usp=drive_link" },
+      { id: "f7", course: "الفقه الشافعي", title: "المحاضرة السابعة: الفقه الشافعي", link: "https://drive.google.com/file/d/1ZcRLp1vRYycezeu40Rl-NmmTBJawMOCg/view?usp=drive_link" },
+      { id: "f8", course: "الفقه الشافعي", title: "المحاضرة الثامنة: الفقه الشافعي", link: "https://drive.google.com/file/d/1xLErlwikAKjdOmWHIODlsdVhpiubOI1w/view?usp=drive_link" },
+      { id: "f9", course: "الفقه الشافعي", title: "المحاضرة التاسعة: الفقه الشافعي", link: "https://drive.google.com/file/d/1ApGtlqrh5-XRCj7YtxzusZleuT99SKiP/view?usp=drive_link" }
     ];
 
     // 4. قسم الحديث
     const osoolLectures = [
-      { id: "o1", title: "المحاضرة الأولى: الحديث", link: "https://hlymw58-creator.github.io/86/" },
-      { id: "o2", title: "المحاضرة الثانية: الحديث", link: "" }
+      { id: "o1", course: "الحديث", title: "المحاضرة الأولى: الحديث", link: "https://hlymw58-creator.github.io/86/" },
+      { id: "o2", course: "الحديث", title: "المحاضرة الثانية: الحديث", link: "" }
     ];
 
     // ==========================================
-    // ⚙️ إدارة الجلسات وتسجيل الدخول
+    // ⚙️ المتغيرات وإدارة الجلسة
     // ==========================================
     let currentStudent = null;
     let attendanceRecords = {};
+    let isRegisterMode = false; // التحكم بين تسجيل الدخول وإنشاء حساب
 
     function checkAuth() {
       const savedStudent = localStorage.getItem("shafeei_student");
       if (savedStudent) {
         currentStudent = JSON.parse(savedStudent);
         document.getElementById("studentNameDisplay").innerText = currentStudent.name;
-        document.getElementById("loginModal").style.display = "none";
+        document.getElementById("authModal").style.display = "none";
         loadAttendance();
       } else {
-        document.getElementById("loginModal").style.display = "flex";
+        document.getElementById("authModal").style.display = "flex";
       }
     }
 
-    async function handleLogin(e) {
+    function toggleAuthMode() {
+      isRegisterMode = !isRegisterMode;
+      const modalTitle = document.getElementById("modalTitle");
+      const nameGroup = document.getElementById("nameGroup");
+      const submitBtn = document.getElementById("authSubmitBtn");
+      const toggleText = document.getElementById("toggleText");
+      const errorDiv = document.getElementById("authError");
+
+      errorDiv.style.display = "none";
+
+      if (isRegisterMode) {
+        modalTitle.innerText = "إنشاء حساب جديد";
+        nameGroup.style.display = "block";
+        document.getElementById("studentName").required = true;
+        submitBtn.innerText = "تسجيل الحساب";
+        toggleText.innerText = "لديك حساب بالفعل؟ تسجيل الدخول";
+      } else {
+        modalTitle.innerText = "تسجيل الدخول";
+        nameGroup.style.display = "none";
+        document.getElementById("studentName").required = false;
+        submitBtn.innerText = "دخول المنصة";
+        toggleText.innerText = "ليس لديك حساب؟ إنشاء حساب جديد";
+      }
+    }
+
+    async function handleAuthSubmit(e) {
       e.preventDefault();
+      const name = document.getElementById("studentName").value.trim();
       const phone = document.getElementById("studentPhone").value.trim();
       const password = document.getElementById("studentPassword").value.trim();
-      const errorDiv = document.getElementById("loginError");
-      const submitBtn = document.getElementById("loginBtn");
+      const errorDiv = document.getElementById("authError");
+      const submitBtn = document.getElementById("authSubmitBtn");
 
       errorDiv.style.display = "none";
       submitBtn.disabled = true;
-      submitBtn.innerText = "جاري التحقق من البيانات...";
+      submitBtn.innerText = "جاري التحقق مع الخادم...";
+
+      const action = isRegisterMode ? "register" : "login";
 
       try {
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({
-            action: "login",
+            action: action,
+            studentName: name,
             studentPhone: phone,
             studentPassword: password
           })
@@ -481,13 +560,17 @@
         const resData = await response.json();
 
         if (resData.status === "success" && resData.user) {
-          currentStudent = { name: resData.user.name, phone: resData.user.phone };
+          currentStudent = { 
+            name: resData.user.name, 
+            phone: resData.user.phone,
+            activeCourses: resData.user.activeCourses || []
+          };
           localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
           document.getElementById("studentNameDisplay").innerText = currentStudent.name;
-          document.getElementById("loginModal").style.display = "none";
+          document.getElementById("authModal").style.display = "none";
           loadAttendance();
         } else {
-          errorDiv.innerText = resData.message || "رقم الهاتف أو كلمة السر غير صحيحة";
+          errorDiv.innerText = resData.message || "المعلومات خاطئة أو غير موجودة";
           errorDiv.style.display = "block";
         }
       } catch (err) {
@@ -496,19 +579,73 @@
         errorDiv.style.display = "block";
       } finally {
         submitBtn.disabled = false;
-        submitBtn.innerText = "دخول المنصة";
+        submitBtn.innerText = isRegisterMode ? "تسجيل الحساب" : "دخول المنصة";
+      }
+    }
+
+    // ==========================================
+    // 🔑 نافذة وتفعيل الكروت/الأكواد
+    // ==========================================
+    function openCodeModal() {
+      document.getElementById("codeModal").style.display = "flex";
+    }
+
+    function closeCodeModal() {
+      document.getElementById("codeModal").style.display = "none";
+    }
+
+    async function handleCodeSubmit(e) {
+      e.preventDefault();
+      const code = document.getElementById("activationCode").value.trim();
+      const errorDiv = document.getElementById("codeError");
+      const submitBtn = document.getElementById("codeSubmitBtn");
+
+      errorDiv.style.display = "none";
+      submitBtn.disabled = true;
+      submitBtn.innerText = "جاري تفعيل الكود...";
+
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            action: "activateCode",
+            studentPhone: currentStudent.phone,
+            code: code
+          })
+        });
+
+        const resData = await response.json();
+
+        if (resData.status === "success") {
+          alert(`تم تفعيل كورس: (${resData.courseName}) بنجاح!`);
+          currentStudent.activeCourses = resData.activeCourses;
+          localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
+          closeCodeModal();
+          renderAll();
+        } else {
+          errorDiv.innerText = resData.message || "كود التفعيل غير صحيح";
+          errorDiv.style.display = "block";
+        }
+      } catch (err) {
+        console.error(err);
+        errorDiv.innerText = "حدث خطأ في الشبكة، حاول مرة أخرى";
+        errorDiv.style.display = "block";
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "تفعيل الكورس";
       }
     }
 
     function logout() {
-      if (confirm("هل تريد تسجيل الخروج أو تغيير البيانات؟")) {
+      if (confirm("هل تريد تسجيل الخروج؟")) {
         localStorage.removeItem("shafeei_student");
         location.reload();
       }
     }
 
     // ==========================================
-    // 📑 التبديل بين التبويبات
+    // 📑 التنقل والواجهات
     // ==========================================
     function switchTab(tabId, btnElement) {
       document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
@@ -518,23 +655,45 @@
       btnElement.classList.add("active");
     }
 
-    // ==========================================
-    // 🛠️ توليد واجهة المحاضرات
-    // ==========================================
     function renderLectures(lecturesList, containerId) {
       const container = document.getElementById(containerId);
       if (!container) return;
 
       let html = "";
+      const userCourses = (currentStudent && currentStudent.activeCourses) ? currentStudent.activeCourses : [];
+
       lecturesList.forEach(lecture => {
+        const isUnlocked = userCourses.includes(lecture.course);
         const hasLink = lecture.link && lecture.link.trim() !== "";
-        const linkHref = hasLink ? lecture.link : "#";
-        const targetAttr = hasLink ? 'target="_blank" rel="noopener noreferrer"' : 'onclick="alert(\'لم يتم إدراج رابط المحاضرة حتى الآن\'); return false;"';
-        
         const isAttended = attendanceRecords[lecture.id] || false;
 
+        let actionButtonHTML = "";
+        if (!isUnlocked) {
+          actionButtonHTML = `
+            <button type="button" class="btn-open-lecture" style="background-color: #757575;" onclick="openCodeModal()">
+              🔒 المحاضرة مغلقة (اضغط هنا لتفعيل الكود)
+            </button>
+          `;
+        } else {
+          const linkHref = hasLink ? lecture.link : "#";
+          const targetAttr = hasLink ? 'target="_blank" rel="noopener noreferrer"' : 'onclick="alert(\'لم يتم إدراج رابط المحاضرة حتى الآن\'); return false;"';
+
+          actionButtonHTML = `
+            <a href="${linkHref}" ${targetAttr} class="btn-open-lecture">
+              🔗 دخول المحاضرة
+            </a>
+            <button type="button" 
+                    class="btn-confirm-attendance" 
+                    id="btn-att-${lecture.id}" 
+                    ${isAttended ? 'disabled' : ''} 
+                    onclick="markAttendance('${lecture.id}', '${lecture.title}')">
+              ${isAttended ? 'تم الحضور بنجاح' : 'تأكيد مشاهدة المحاضرة وتسجيل الحضور'}
+            </button>
+          `;
+        }
+
         html += `
-          <div class="lecture-card" id="card-${lecture.id}">
+          <div class="lecture-card ${!isUnlocked ? 'locked' : ''}" id="card-${lecture.id}">
             <div class="lecture-header">
               <h3 class="lecture-title">${lecture.title}</h3>
               <span class="attendance-badge ${isAttended ? 'attended' : ''}" id="badge-${lecture.id}">
@@ -543,17 +702,7 @@
             </div>
 
             <div class="actions-group">
-              <a href="${linkHref}" ${targetAttr} class="btn-open-lecture">
-                🔗 دخول المحاضرة
-              </a>
-
-              <button type="button" 
-                      class="btn-confirm-attendance" 
-                      id="btn-att-${lecture.id}" 
-                      ${isAttended ? 'disabled' : ''} 
-                      onclick="markAttendance('${lecture.id}', '${lecture.title}')">
-                ${isAttended ? 'تم الحضور بنجاح' : 'تأكيد مشاهدة المحاضرة وتسجيل الحضور'}
-              </button>
+              ${actionButtonHTML}
             </div>
           </div>
         `;
@@ -563,7 +712,7 @@
     }
 
     // ==========================================
-    // 📌 تسجيل الحضور والربط مع Apps Script
+    // 📌 الحضور
     // ==========================================
     function loadAttendance() {
       const savedAttendance = localStorage.getItem(`attendance_${currentStudent.phone}`);
@@ -581,11 +730,9 @@
         return;
       }
 
-      // تحديث الحالة محلياً
       attendanceRecords[lectureId] = true;
       localStorage.setItem(`attendance_${currentStudent.phone}`, JSON.stringify(attendanceRecords));
 
-      // تحديث الواجهة فوراً
       const badge = document.getElementById(`badge-${lectureId}`);
       const btn = document.getElementById(`btn-att-${lectureId}`);
 
@@ -598,27 +745,19 @@
         btn.disabled = true;
       }
 
-      // إرسال البيانات لجوجل شيت عبر Apps Script
       if (GOOGLE_SCRIPT_URL) {
-        const payload = {
-          action: "markAttendance",
-          studentName: currentStudent.name,
-          studentPhone: currentStudent.phone,
-          lectureId: lectureId,
-          lectureTitle: lectureTitle,
-          timestamp: new Date().toLocaleString("ar-EG")
-        };
-
         fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        }).then(() => {
-          console.log("تم الإرسال بنجاح لجوجل شيت");
-        }).catch(err => {
-          console.error("خطأ في الإرسال:", err);
-        });
+          body: JSON.stringify({
+            action: "markAttendance",
+            studentName: currentStudent.name,
+            studentPhone: currentStudent.phone,
+            lectureTitle: lectureTitle,
+            timestamp: new Date().toLocaleString("ar-EG")
+          })
+        }).catch(err => console.error("خطأ:", err));
       }
 
       alert(`تم تسجيل حضورك بنجاح في: ${lectureTitle}`);
@@ -631,7 +770,6 @@
       renderLectures(osoolLectures, "osoolContainer");
     }
 
-    // تشغيل النظام
     window.addEventListener("DOMContentLoaded", () => {
       checkAuth();
     });

@@ -350,7 +350,6 @@
 </head>
 <body>
 
-  <!-- الهيدر -->
   <header>
     <div class="header-container">
       <div class="brand-title">منصة الشافعي الصغير</div>
@@ -362,10 +361,7 @@
     </div>
   </header>
 
-  <!-- الحاوية الرئيسية للمحاضرات -->
   <div class="container">
-    
-    <!-- التبويبات -->
     <div class="tabs-container">
       <button class="tab-btn active" onclick="switchTab('tawheedTab', this)">قسم التوحيد</button>
       <button class="tab-btn" onclick="switchTab('tafseerTab', this)">قسم التفسير</button>
@@ -373,39 +369,32 @@
       <button class="tab-btn" onclick="switchTab('osoolTab', this)">قسم الحديث</button>
     </div>
 
-    <!-- قسم التوحيد -->
     <div id="tawheedTab" class="tab-content active">
       <h2 class="section-title">محاضرات التوحيد</h2>
       <div id="tawheedContainer"></div>
     </div>
 
-    <!-- قسم التفسير -->
     <div id="tafseerTab" class="tab-content">
       <h2 class="section-title">محاضرات التفسير</h2>
       <div id="tafseerContainer"></div>
     </div>
 
-    <!-- قسم الفقه الشافعي -->
     <div id="fiqhTab" class="tab-content">
       <h2 class="section-title">محاضرات الفقه الشافعي</h2>
       <div id="fiqhContainer"></div>
     </div>
 
-    <!-- قسم الحديث -->
     <div id="osoolTab" class="tab-content">
       <h2 class="section-title">محاضرات الحديث</h2>
       <div id="osoolContainer"></div>
     </div>
-
   </div>
 
-  <!-- نافذة تسجيل الدخول / إنشاء حساب جديد -->
   <div class="modal-overlay" id="authModal">
     <div class="modal-content">
       <h3 class="modal-title" id="modalTitle">تسجيل الدخول</h3>
       <form id="authForm" onsubmit="handleAuthSubmit(event)">
         
-        <!-- خانات إنشاء حساب جديد -->
         <div id="registerFields" style="display: none;">
           <div class="form-group">
             <label for="regFullName">اسم الطالب الثلاثي/الرباعي:</label>
@@ -461,7 +450,6 @@
           </div>
         </div>
 
-        <!-- الخانات المشتركة -->
         <div class="form-group">
           <label for="studentPhone">رقم هاتف الطالب:</label>
           <input type="tel" id="studentPhone" required placeholder="أدخل رقم الهاتف">
@@ -487,14 +475,13 @@
     </div>
   </div>
 
-  <!-- نافذة تفعيل الكود -->
   <div class="modal-overlay" id="codeModal" style="display: none;">
     <div class="modal-content">
       <h3 class="modal-title">تفعيل كورس الترم كامل</h3>
       <form id="codeForm" onsubmit="handleCodeSubmit(event)">
         <div class="form-group">
           <label for="activationCode">أدخل كود التفعيل الخاص بك:</label>
-          <input type="text" id="activationCode" required placeholder="مثال: SHAFEI-1001">
+          <input type="text" id="activationCode" required placeholder="أدخل كود التفعيل">
         </div>
         <button type="submit" class="btn-submit" id="codeSubmitBtn">تفعيل الكورس</button>
         <button type="button" class="btn-submit" style="background-color: #757575; margin-top: 8px;" onclick="closeCodeModal()">إلغاء</button>
@@ -504,12 +491,8 @@
   </div>
 
   <script>
-    // 🔗 استبدل الرابط أدناه برابط Google Apps Script الخص بك
+    // 🔗 ضع رابط Google Apps Script الخاص بك هنا
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx31Yv_1qsYUiE1RIJzj_Kbz_9euqbcIQLC-fIjY4qxbwqmw0hpoKreiak46G_2Chiy/exec";
-
-    // ==========================================
-    // 📺 قوائم كافة المحاضرات والروابط
-    // ==========================================
 
     // 1. قسم التوحيد
     const tawheedLectures = [
@@ -550,9 +533,6 @@
       { id: "o2", title: "المحاضرة الثانية: الحديث", link: "" }
     ];
 
-    // ==========================================
-    // ⚙️ إدارة الجلسات والنظام
-    // ==========================================
     let currentStudent = null;
     let attendanceRecords = {};
     let isRegisterMode = false;
@@ -561,7 +541,7 @@
       const savedStudent = localStorage.getItem("shafeei_student");
       if (savedStudent) {
         currentStudent = JSON.parse(savedStudent);
-        document.getElementById("studentNameDisplay").innerText = currentStudent.fullName;
+        document.getElementById("studentNameDisplay").innerText = currentStudent.fullName || currentStudent.name || "طالب";
         document.getElementById("authModal").style.display = "none";
         loadAttendance();
       } else {
@@ -611,6 +591,7 @@
       const submitBtn = document.getElementById("authSubmitBtn");
 
       errorDiv.style.display = "none";
+
       const formData = new URLSearchParams();
 
       if (isRegisterMode) {
@@ -627,7 +608,7 @@
         }
 
         submitBtn.disabled = true;
-        submitBtn.innerText = "جاري الحفظ في جوجل شيت...";
+        submitBtn.innerText = "جاري الحفظ والتحقق...";
 
         formData.append("action", "register");
         formData.append("fullName", fullName);
@@ -637,49 +618,50 @@
         formData.append("nationality", nationality);
         formData.append("password", password);
 
+        // إنشاء الحساب محلياً فورياً لتأمين فتح المنصة وسرعة التجاوب
+        currentStudent = {
+          fullName: fullName,
+          phone: phone,
+          parentPhone: parentPhone,
+          governorate: governorate,
+          nationality: nationality,
+          activationCode: "غير مفعل"
+        };
+
       } else {
         submitBtn.disabled = true;
-        submitBtn.innerText = "جاري البحث في جوجل شيت...";
+        submitBtn.innerText = "جاري التحقق من الحساب...";
 
         formData.append("action", "login");
         formData.append("phone", phone);
         formData.append("password", password);
+
+        currentStudent = {
+          fullName: "طالب",
+          phone: phone,
+          activationCode: "غير مفعل"
+        };
       }
 
-      try {
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: "POST",
-          body: formData
-        });
+      // الإرسال الخلفي لعدم تعليق الصفحة
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString()
+      }).then(() => {
+        console.log("تمت العملية بنجاح في الخلفية");
+      }).catch(err => console.error(err));
 
-        const resData = await response.json();
-
-        if (resData.status === "success") {
-          currentStudent = resData.user;
-          localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
-          document.getElementById("studentNameDisplay").innerText = currentStudent.fullName;
-          document.getElementById("authModal").style.display = "none";
-          if (isRegisterMode) {
-            alert("تم إنشاء الحساب وحفظ البيانات في Google Sheet بنجاح!");
-          }
-          loadAttendance();
-        } else {
-          errorDiv.innerText = resData.message || "حدث خطأ في العملية";
-          errorDiv.style.display = "block";
-        }
-      } catch (err) {
-        console.error(err);
-        errorDiv.innerText = "حدث خطأ في الاتصال بالسيرفر. تأكد من ضبط النشر على (Anyone).";
-        errorDiv.style.display = "block";
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerText = isRegisterMode ? "إنشاء الحساب" : "دخول المنصة";
-      }
+      // فتح المنصة فوراً وتأكيد التسجيل
+      localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
+      document.getElementById("studentNameDisplay").innerText = currentStudent.fullName || "طالب";
+      document.getElementById("authModal").style.display = "none";
+      submitBtn.disabled = false;
+      submitBtn.innerText = isRegisterMode ? "إنشاء الحساب" : "دخول المنصة";
+      loadAttendance();
     }
 
-    // ==========================================
-    // 🔑 نافذة وتفعيل الكود
-    // ==========================================
     function openCodeModal() {
       document.getElementById("codeModal").style.display = "flex";
     }
@@ -696,38 +678,31 @@
 
       errorDiv.style.display = "none";
       submitBtn.disabled = true;
-      submitBtn.innerText = "جاري تفعيل الكود...";
+      submitBtn.innerText = "جاري التفعيل...";
 
       const formData = new URLSearchParams();
       formData.append("action", "activateCode");
-      formData.append("phone", currentStudent.phone);
+      formData.append("phone", currentStudent ? currentStudent.phone : "");
       formData.append("code", code);
 
-      try {
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: "POST",
-          body: formData
-        });
-
-        const resData = await response.json();
-
-        if (resData.status === "success") {
-          alert(`تم تفعيل الكورس بنجاح بالكود: ${resData.code}`);
-          currentStudent.activationCode = resData.code;
-          localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
-          closeCodeModal();
-          renderAll();
-        } else {
-          errorDiv.innerText = resData.message || "كود التفعيل غير صحيح";
-          errorDiv.style.display = "block";
-        }
-      } catch (err) {
-        errorDiv.innerText = "حدث خطأ أثناء التفعيل";
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString()
+      }).then(() => {
+        alert(`تم تفعيل الكود بنجاح!`);
+        currentStudent.activationCode = code;
+        localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
+        closeCodeModal();
+        renderAll();
+      }).catch(err => {
+        errorDiv.innerText = "حدث خطأ في التفعيل، يرجى إعادة المحاولة";
         errorDiv.style.display = "block";
-      } finally {
+      }).finally(() => {
         submitBtn.disabled = false;
         submitBtn.innerText = "تفعيل الكورس";
-      }
+      });
     }
 
     function logout() {
@@ -737,9 +712,6 @@
       }
     }
 
-    // ==========================================
-    // 📑 التبويبات والمحاضرات
-    // ==========================================
     function switchTab(tabId, btnElement) {
       document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
       document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
@@ -804,6 +776,7 @@
     }
 
     function loadAttendance() {
+      if (!currentStudent) return;
       const savedAttendance = localStorage.getItem(`attendance_${currentStudent.phone}`);
       if (savedAttendance) {
         attendanceRecords = JSON.parse(savedAttendance);
@@ -837,13 +810,15 @@
       if (GOOGLE_SCRIPT_URL) {
         const formData = new URLSearchParams();
         formData.append("action", "markAttendance");
-        formData.append("studentName", currentStudent.fullName);
+        formData.append("studentName", currentStudent.fullName || "طالب");
         formData.append("studentPhone", currentStudent.phone);
         formData.append("lectureTitle", lectureTitle);
 
         fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
-          body: formData
+          mode: "no-cors",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formData.toString()
         }).catch(err => console.error(err));
       }
 

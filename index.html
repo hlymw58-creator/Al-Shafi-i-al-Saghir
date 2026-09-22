@@ -461,7 +461,7 @@
           </div>
         </div>
 
-        <!-- الخانات المشتركة بين تسجيل الدخول والحساب -->
+        <!-- الخانات المشتركة -->
         <div class="form-group">
           <label for="studentPhone">رقم هاتف الطالب:</label>
           <input type="tel" id="studentPhone" required placeholder="أدخل رقم الهاتف">
@@ -504,7 +504,7 @@
   </div>
 
   <script>
-    // 🔗 رابط Google Apps Script الخاص بك
+    // 🔗 استبدل الرابط أدناه برابط Google Apps Script الخص بك
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzt1MgMXcny8-8c9RScS2CeNksYEzA6DHwDiWW4px7BxRaRMw7R41kiqFFMlOTsJnNnig/exec";
 
     // ==========================================
@@ -551,7 +551,7 @@
     ];
 
     // ==========================================
-    // ⚙️ المتغيرات وإدارة الحسابات
+    // ⚙️ إدارة الجلسات والنظام
     // ==========================================
     let currentStudent = null;
     let attendanceRecords = {};
@@ -611,6 +611,7 @@
       const submitBtn = document.getElementById("authSubmitBtn");
 
       errorDiv.style.display = "none";
+      const formData = new URLSearchParams();
 
       if (isRegisterMode) {
         const fullName = document.getElementById("regFullName").value.trim();
@@ -628,77 +629,51 @@
         submitBtn.disabled = true;
         submitBtn.innerText = "جاري الحفظ في جوجل شيت...";
 
-        try {
-          const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify({
-              action: "register",
-              fullName,
-              phone,
-              parentPhone,
-              governorate,
-              nationality,
-              password
-            })
-          });
-
-          const resData = await response.json();
-
-          if (resData.status === "success") {
-            currentStudent = resData.user;
-            localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
-            document.getElementById("studentNameDisplay").innerText = currentStudent.fullName;
-            document.getElementById("authModal").style.display = "none";
-            alert("تم إنشاء الحساب وحفظ البيانات في Google Sheet بنجاح!");
-            loadAttendance();
-          } else {
-            errorDiv.innerText = resData.message || "حدث خطأ أثناء التخصيص";
-            errorDiv.style.display = "block";
-          }
-        } catch (err) {
-          errorDiv.innerText = "حدث خطأ في الاتصال بالسيرفر";
-          errorDiv.style.display = "block";
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.innerText = "إنشاء الحساب";
-        }
+        formData.append("action", "register");
+        formData.append("fullName", fullName);
+        formData.append("phone", phone);
+        formData.append("parentPhone", parentPhone);
+        formData.append("governorate", governorate);
+        formData.append("nationality", nationality);
+        formData.append("password", password);
 
       } else {
-        // تسجيل الدخول والبحث في جوجل شيت
         submitBtn.disabled = true;
         submitBtn.innerText = "جاري البحث في جوجل شيت...";
 
-        try {
-          const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify({
-              action: "login",
-              phone: phone,
-              password: password
-            })
-          });
+        formData.append("action", "login");
+        formData.append("phone", phone);
+        formData.append("password", password);
+      }
 
-          const resData = await response.json();
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          body: formData
+        });
 
-          if (resData.status === "success" && resData.user) {
-            currentStudent = resData.user;
-            localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
-            document.getElementById("studentNameDisplay").innerText = currentStudent.fullName;
-            document.getElementById("authModal").style.display = "none";
-            loadAttendance();
-          } else {
-            errorDiv.innerText = resData.message || "المعلومات خاطئة أو غير موجودة";
-            errorDiv.style.display = "block";
+        const resData = await response.json();
+
+        if (resData.status === "success") {
+          currentStudent = resData.user;
+          localStorage.setItem("shafeei_student", JSON.stringify(currentStudent));
+          document.getElementById("studentNameDisplay").innerText = currentStudent.fullName;
+          document.getElementById("authModal").style.display = "none";
+          if (isRegisterMode) {
+            alert("تم إنشاء الحساب وحفظ البيانات في Google Sheet بنجاح!");
           }
-        } catch (err) {
-          errorDiv.innerText = "حدث خطأ في الاتصال بـ Google Sheet";
+          loadAttendance();
+        } else {
+          errorDiv.innerText = resData.message || "حدث خطأ في العملية";
           errorDiv.style.display = "block";
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.innerText = "دخول المنصة";
         }
+      } catch (err) {
+        console.error(err);
+        errorDiv.innerText = "حدث خطأ في الاتصال بالسيرفر. تأكد من ضبط النشر على (Anyone).";
+        errorDiv.style.display = "block";
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = isRegisterMode ? "إنشاء الحساب" : "دخول المنصة";
       }
     }
 
@@ -723,15 +698,15 @@
       submitBtn.disabled = true;
       submitBtn.innerText = "جاري تفعيل الكود...";
 
+      const formData = new URLSearchParams();
+      formData.append("action", "activateCode");
+      formData.append("phone", currentStudent.phone);
+      formData.append("code", code);
+
       try {
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({
-            action: "activateCode",
-            phone: currentStudent.phone,
-            code: code
-          })
+          body: formData
         });
 
         const resData = await response.json();
@@ -763,7 +738,7 @@
     }
 
     // ==========================================
-    // 📑 التبويبات وتأكيد الحضور
+    // 📑 التبويبات والمحاضرات
     // ==========================================
     function switchTab(tabId, btnElement) {
       document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
@@ -860,16 +835,15 @@
       }
 
       if (GOOGLE_SCRIPT_URL) {
+        const formData = new URLSearchParams();
+        formData.append("action", "markAttendance");
+        formData.append("studentName", currentStudent.fullName);
+        formData.append("studentPhone", currentStudent.phone);
+        formData.append("lectureTitle", lectureTitle);
+
         fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "markAttendance",
-            studentName: currentStudent.fullName,
-            studentPhone: currentStudent.phone,
-            lectureTitle: lectureTitle
-          })
+          body: formData
         }).catch(err => console.error(err));
       }
 
